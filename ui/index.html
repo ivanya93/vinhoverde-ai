@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VinhoVerde AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wine: #7a1f3d; --wine-dark: #561429; --green: #6b8f3a; --cream: #faf6ef;
+    --ink: #2a2024; --muted: #7d6f74; --card: #ffffff; --line: #eadfd6;
+    --standard: #b9a89c; --good: #6b8f3a; --premium: #7a1f3d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, system-ui, sans-serif; background: var(--cream); color: var(--ink); }
+  header { background: linear-gradient(135deg, var(--wine-dark), var(--wine)); color: #fff; padding: 28px 16px 70px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-family: Fraunces, serif; font-size: 2.1rem; }
+  h1 span { color: #cfe3a7; }
+  header p { opacity: .85; margin-top: 6px; }
+  .tabs { display: flex; gap: 8px; margin-top: 22px; }
+  .tab { background: rgba(255,255,255,.15); color: #fff; border: 0; padding: 10px 18px; border-radius: 999px; cursor: pointer; font-weight: 600; }
+  .tab.active { background: #fff; color: var(--wine); }
+  main { margin-top: -46px; padding: 0 16px 40px; }
+  .panel { display: none; background: var(--card); border-radius: 18px; padding: 24px; box-shadow: 0 10px 30px rgba(86,20,41,.12); }
+  .panel.active { display: block; }
+  h2 { font-family: Fraunces, serif; color: var(--wine); margin-bottom: 4px; }
+  .sub { color: var(--muted); margin-bottom: 18px; font-size: .95rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  label { font-size: .78rem; color: var(--muted); display: block; margin-bottom: 4px; }
+  input, select { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; font: inherit; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0; }
+  button.primary { background: var(--wine); color: #fff; border: 0; padding: 11px 20px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+  button.ghost { background: transparent; border: 1px solid var(--line); padding: 11px 16px; border-radius: 10px; cursor: pointer; }
+  .result { border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: none; }
+  .tier { font-family: Fraunces, serif; font-size: 1.8rem; text-transform: capitalize; }
+  .bar { height: 10px; border-radius: 99px; background: #f1ebe5; overflow: hidden; margin: 4px 0 10px; }
+  .bar div { height: 100%; }
+  .chat { height: 380px; overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: #fffdf9; }
+  .msg { max-width: 82%; padding: 10px 14px; border-radius: 14px; margin: 8px 0; line-height: 1.45; white-space: pre-wrap; }
+  .user { background: var(--wine); color: #fff; margin-left: auto; border-bottom-right-radius: 4px; }
+  .bot { background: #f3ede6; border-bottom-left-radius: 4px; }
+  .wines { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .wine { font-size: .75rem; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 9px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .chip { background: #f3ede6; border: 0; padding: 7px 12px; border-radius: 99px; cursor: pointer; font-size: .85rem; }
+  .ask { display: flex; gap: 8px; }
+  footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 10px 16px 30px; }
+  code { background: #f3ede6; padding: 2px 6px; border-radius: 6px; }
+  @media (max-width: 600px) { h1 { font-size: 1.6rem; } .msg { max-width: 95%; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Vinho<span>Verde</span> AI</h1>
+  <p>Lab-based quality triage for winemakers, and a Portuguese sommelier for customers.</p>
+  <div class="tabs">
+    <button class="tab active" data-tab="lab">🧪 Quality Lab</button>
+    <button class="tab" data-tab="somm">🍷 Sommelier</button>
+  </div>
+</div></header>
+
+<main><div class="wrap">
+  <section id="lab" class="panel active">
+    <h2>Quality Lab</h2>
+    <p class="sub">Enter a batch's lab analysis. The champion model predicts its quality tier before bottling.</p>
+    <div class="row">
+      <button class="ghost" onclick="preset('red')">Load red example</button>
+      <button class="ghost" onclick="preset('white')">Load white example</button>
+    </div>
+    <div class="grid" id="form"></div>
+    <div class="row"><button class="primary" onclick="predict()">Predict quality</button></div>
+    <div class="result" id="result"></div>
+  </section>
+
+  <section id="somm" class="panel">
+    <h2>Ask the Sommelier</h2>
+    <p class="sub">Recommendations come only from our catalog of Portuguese wines.</p>
+    <div class="chips">
+      <button class="chip">What goes with grilled sardines?</button>
+      <button class="chip">A Douro red under 20 euros for steak</button>
+      <button class="chip">Wine for bacalhau com natas</button>
+      <button class="chip">Something to bring to a summer barbecue</button>
+    </div>
+    <div class="chat" id="chat"><div class="msg bot">Olá! 🍇 Ask me about Portuguese wines or what to pair with dinner.</div></div>
+    <div class="ask" style="margin-top:10px">
+      <input id="q" placeholder="e.g. Which white goes with seafood rice?" onkeydown="if(event.key==='Enter')ask()">
+      <button class="primary" onclick="ask()">Ask</button>
+    </div>
+  </section>
+</div></main>
+<footer id="status">Checking service…</footer>
+
+<script>
+const FIELDS = ["fixed acidity","volatile acidity","citric acid","residual sugar","chlorides",
+  "free sulfur dioxide","total sulfur dioxide","density","pH","sulphates","alcohol"];
+const COLORS = {standard: "var(--standard)", good: "var(--good)", premium: "var(--premium)"};
+let history = [];
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab,.panel").forEach(e => e.classList.remove("active"));
+  t.classList.add("active"); document.getElementById(t.dataset.tab).classList.add("active");
+});
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => { q.value = c.textContent; ask(); });
+
+const form = document.getElementById("form");
+form.innerHTML = `<div><label>wine type</label><select id="f-wine_type"><option>red</option><option>white</option></select></div>`
+  + FIELDS.map(f => `<div><label>${f}</label><input type="number" step="any" id="f-${f.replace(/ /g,'_')}"></div>`).join("");
+
+async function preset(kind) {
+  const ex = (await (await fetch("/examples")).json())[kind];
+  document.getElementById("f-wine_type").value = ex.wine_type;
+  FIELDS.forEach(f => document.getElementById(`f-${f.replace(/ /g,'_')}`).value = ex[f]);
+}
+
+function readWine() {
+  const w = {wine_type: document.getElementById("f-wine_type").value};
+  FIELDS.forEach(f => w[f] = parseFloat(document.getElementById(`f-${f.replace(/ /g,'_')}`).value));
+  return w;
+}
+
+async function predict() {
+  const box = document.getElementById("result");
+  box.style.display = "block"; box.innerHTML = "Tasting… 🍷";
+  const r = await fetch("/predict", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(readWine())});
+  const d = await r.json();
+  if (!r.ok) { box.innerHTML = `⚠️ ${d.detail}`; return; }
+  const bars = Object.entries(d.probabilities).map(([k, v]) =>
+    `<label>${k} — ${(v*100).toFixed(0)}%</label><div class="bar"><div style="width:${v*100}%;background:${COLORS[k]}"></div></div>`).join("");
+  box.innerHTML = `<div class="sub">Predicted tier · model v${d.model_version}</div>
+    <div class="tier" style="color:${COLORS[d.quality_tier]}">${d.quality_tier}</div>
+    <p style="margin:8px 0 14px">${d.action}</p>${bars}
+    <button class="ghost" onclick="askAbout()">Ask the sommelier about this wine →</button>`;
+  window.lastPrediction = d; refreshStatus();
+}
+
+function askAbout() {
+  const d = window.lastPrediction, w = d.input;
+  document.querySelector('[data-tab="somm"]').click();
+  q.value = `Our lab tested a ${w.wine_type} wine: ${w.alcohol}% alcohol, pH ${w.pH}, residual sugar ${w["residual sugar"]} g/L, volatile acidity ${w["volatile acidity"]}. The model rates it "${d.quality_tier}". What style is it likely to be, and what food would pair with it?`;
+  ask();
+}
+
+function add(text, who, wines) {
+  const chat = document.getElementById("chat");
+  const div = document.createElement("div");
+  div.className = `msg ${who}`; div.textContent = text;
+  if (wines && wines.length) {
+    const box = document.createElement("div"); box.className = "wines";
+    wines.slice(0, 3).forEach(w => { const s = document.createElement("span"); s.className = "wine";
+      s.textContent = `${w.title} · ${w.price ? "€" + w.price : "n/a"}`; box.appendChild(s); });
+    div.appendChild(box);
+  }
+  chat.appendChild(div); chat.scrollTop = chat.scrollHeight; return div;
+}
+
+async function ask() {
+  const text = q.value.trim(); if (!text) return;
+  q.value = ""; add(text, "user");
+  const wait = add("Choosing a bottle…", "bot");
+  const r = await fetch("/chat", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({message: text, history})});
+  const d = await r.json(); wait.remove();
+  if (!r.ok) { add(`⚠️ ${d.detail}`, "bot"); return; }
+  add(d.answer, "bot", d.wines);
+  history.push({role: "user", content: text}, {role: "assistant", content: d.answer});
+  history = history.slice(-6); refreshStatus();
+}
+
+function refreshStatus() { fetch("/health").then(r => r.json()).then(h => {
+  document.getElementById("status").innerHTML =
+    `Model <code>${h.model_uri}</code> v${h.model_version ?? "–"} · Prompt <code>sommelier@champion</code> ${h.prompt_version ?? "(loads on first chat)"} · LLM ${h.llm.model}`;
+}).catch(() => document.getElementById("status").textContent = "Service unreachable"); }
+refreshStatus();
+preset("red");
+</script>
+</body>
+</html>

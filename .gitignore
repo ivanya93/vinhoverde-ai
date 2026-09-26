@@ -1,0 +1,22 @@
+# Secrets
+.env
+docker/.env
+
+# Data: downloaded / generated, never committed (see data/README.md)
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+
+# MLflow state: the registry is the system of record for models, not git
+mlflow/
+mlruns/
+mlflow.db
+gate_report.json
+
+# Python / Jupyter / OS
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+.DS_Store

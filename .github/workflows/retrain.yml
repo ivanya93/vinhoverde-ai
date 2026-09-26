@@ -1,0 +1,59 @@
+name: Retrain
+
+# BONUS: the continuous-training pipeline.
+#
+# Triggers: manually (Actions tab -> Retrain -> Run workflow), weekly, or when the data
+# preparation code changes. It downloads the data, trains every configuration, and runs the
+# promotion gate. The gate report and the MLflow store are uploaded as build artifacts so
+# you can show exactly what the pipeline decided.
+#
+# In class the MLflow server lives on your laptop, so CI uses a throwaway local store. In a
+# real team you would set the MLFLOW_TRACKING_URI secret to a shared server and the same
+# job would promote straight into the registry the API reads.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC
+  push:
+    paths:
+      - "src/data.py"
+      - "src/features.py"
+      - "src/train.py"
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI || 'sqlite:///mlflow.db' }}
+      MLFLOW_DISABLE_AGENT_HINT: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r docker/requirements-notebook.txt
+
+      - name: Get data (UCI red + white)
+        run: python -m src.data
+
+      - name: Train all configurations
+        run: python -m src.train --mlflow-uri "$MLFLOW_TRACKING_URI"
+
+      - name: Register + gate + promote
+        run: python -m src.register --mlflow-uri "$MLFLOW_TRACKING_URI" --report gate_report.json
+
+      - name: Summary
+        run: |
+          echo "## Promotion gate" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          cat gate_report.json >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retrain-results
+          path: |
+            gate_report.json
+            mlflow.db
+            mlruns/

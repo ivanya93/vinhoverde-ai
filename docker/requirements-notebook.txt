@@ -1,0 +1,17 @@
+# JupyterLab workspace — pinned so every teammate gets the same environment.
+mlflow==3.16.1
+scikit-learn==1.9.1
+pandas==3.0.6
+numpy==2.5.3
+matplotlib==3.11.2
+openai==3.17.0
+
+# Kaggle download (python -m src.data --kaggle)
+kagglehub==1.0.2
+
+# Tests from inside the container
+pytest==9.1.1
+httpx==0.28.1
+fastapi==0.141.1
+
+ipywidgets==8.1.7

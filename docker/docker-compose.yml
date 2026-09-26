@@ -1,0 +1,79 @@
+# VinhoVerde AI — the whole stack, from one file.
+#
+#   cp .env.example .env      # add your Gemini key (and Kaggle token, optional)
+#   docker compose up -d --build
+#
+#   MLflow      http://localhost:5001   experiments, model registry, prompt registry, traces
+#   JupyterLab  http://localhost:8888   EDA notebook + where you run the pipeline
+#   App         http://localhost:8080   Quality Lab + Sommelier UI, API docs at /docs
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    ports:
+      - "5001:5000"          # 5000 is taken by AirPlay on macOS
+    volumes:
+      - ../mlflow/db:/mlflow/db
+      - ../mlflow/artifacts:/artifacts
+      - ./init-mlflow.sh:/init-mlflow.sh
+    user: "0:0"
+    command: ["bash", "/init-mlflow.sh"]
+    restart: unless-stopped
+
+  # Workspace: EDA, and where the training / registry / evaluation scripts run.
+  jupyter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../notebooks:/home/jovyan/work
+      - ../src:/home/jovyan/src          # mounted, so code edits apply immediately
+      - ../data:/home/jovyan/data
+      # so `make test` can run the suite in here, with the same pins as the app
+      - ../tests:/home/jovyan/tests
+      - ../api:/home/jovyan/api
+      - ../ui:/home/jovyan/ui
+      - ../pytest.ini:/home/jovyan/pytest.ini
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gemini-3.5-flash-lite}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2000}
+      - KAGGLE_USERNAME=${KAGGLE_USERNAME:-}
+      - KAGGLE_KEY=${KAGGLE_KEY:-}
+      - GIT_PYTHON_REFRESH=quiet
+      - MLFLOW_DISABLE_AGENT_HINT=1
+    command: start-notebook.py --IdentityProvider.token=''
+    depends_on:
+      - mlflow
+    restart: unless-stopped
+
+  # The product: FastAPI serving the @champion model + @champion prompt, and the UI.
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.app
+    ports:
+      - "8080:8080"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gemini-3.5-flash-lite}
+      - LLM_MAX_TOKENS=${LLM_MAX_TOKENS:-2000}
+      - GIT_PYTHON_REFRESH=quiet
+      - MLFLOW_DISABLE_AGENT_HINT=1
+    volumes:
+      - ../api:/app/api
+      - ../src:/app/src
+      - ../ui:/app/ui
+      - ../data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - mlflow
+    restart: unless-stopped

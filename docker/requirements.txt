@@ -1,0 +1,12 @@
+# App (API + Sommelier). ML pins MUST match requirements-notebook.txt: a model saved by one
+# scikit-learn version and loaded by another is a classic "worked in the notebook" failure.
+fastapi==0.141.1
+uvicorn==0.53.0
+requests==2.34.2
+openai==3.17.0
+
+mlflow==3.16.1
+scikit-learn==1.9.1
+pandas==3.0.6
+numpy==2.5.3
+matplotlib==3.11.2

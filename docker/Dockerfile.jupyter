@@ -1,0 +1,20 @@
+# JupyterLab workspace. Everything pinned in requirements-notebook.txt.
+FROM quay.io/jupyter/minimal-notebook:python-3.13
+
+# --chown matters: this image's default user (NB_UID/NB_GID, not root) can't read a file
+# COPY'd in without it, and the next line fails with "Permission denied" trying to open it.
+COPY --chown=${NB_UID}:${NB_GID} docker/requirements-notebook.txt /tmp/requirements-notebook.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-notebook.txt && \
+    fix-permissions "${CONDA_DIR}" && \
+    fix-permissions "/home/${NB_USER}"
+
+# So `python -m src.train` and `from src import ...` work from /home/jovyan.
+ENV PYTHONPATH=/home/jovyan
+WORKDIR /home/jovyan
+
+# Match the host's uid on the bind mount, then drop privileges (see the entrypoint).
+USER root
+COPY docker/jupyter-entrypoint.sh /usr/local/bin/jupyter-entrypoint.sh
+RUN chmod +x /usr/local/bin/jupyter-entrypoint.sh
+ENTRYPOINT ["tini", "-g", "--", "/usr/local/bin/jupyter-entrypoint.sh"]
+CMD ["start-notebook.py"]
