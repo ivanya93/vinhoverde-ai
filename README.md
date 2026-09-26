@@ -31,7 +31,15 @@ make promote-prompt   # score 3 prompt modes, promote the winner (~6 min)
 make reload      # app picks up both champions
 ```
 
-Open **http://localhost:8080**. No `make`? Every target is a one-line `docker compose` command (see `Makefile`).
+Once `make up` is running, everything is on `localhost`:
+
+| Service | URL | What's there |
+|---|---|---|
+| 🍷 App | [localhost:8080](http://localhost:8080) | The UI — Quality Lab + Sommelier chat |
+| 🧪 MLflow | [localhost:5001](http://localhost:5001) | Tracking, Model Registry, Prompt Registry, traces |
+| 📓 JupyterLab | [localhost:8888](http://localhost:8888) | `01_eda.ipynb` and `02_pipeline_walkthrough.ipynb` |
+
+No `make`? Every target is a one-line `docker compose` command (see `Makefile`).
 
 ## Architecture
 
@@ -47,6 +55,22 @@ Open **http://localhost:8080**. No `make`? Every target is a one-line `docker co
             └────────────────────────────────────────────────────────────┘
  GitHub Actions: ci.yml (tests on every push) · retrain.yml (bonus: scheduled retrain + gate)
 ```
+
+**How `/predict` works:** the 11 lab measurements + colour are sent straight to whichever
+model currently holds the `@champion` alias in the MLflow Model Registry — the one that most
+recently passed the promotion gate (`MIN_MACRO_F1` floor, and no regression vs. the previous
+champion; see `src/register.py`). It's a plain scikit-learn pipeline (feature engineering +
+classifier), no LLM involved.
+
+**How `/chat` works:** the customer's question is matched against the ~5,000-wine Portuguese
+catalog with a TF-IDF search (`src/catalog.py` — no vector database needed at this size). The
+retrieved wines are pasted into whichever prompt template holds the `@champion` alias in the
+MLflow Prompt Registry (versioned and gated the same way the model is; see
+`src/evaluate_prompts.py`), and only then sent to the LLM — so it can recommend only wines the
+shop actually carries, never an invented one.
+
+In both cases, promoting a new `@champion` in MLflow + calling `/reload` or `/prompt/reload`
+*is* the deployment — nothing else changes.
 
 ## Repository layout
 
