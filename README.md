@@ -56,6 +56,7 @@ No `make`? Every target is a one-line `docker compose` command (see `Makefile`).
  GitHub Actions: ci.yml (tests on every push) · retrain.yml (bonus: scheduled retrain + gate)
 ```
 
+<<<<<<< HEAD
 **How `/predict` works:** the 11 lab measurements + colour are sent straight to whichever
 model currently holds the `@champion` alias in the MLflow Model Registry — the one that most
 recently passed the promotion gate (`MIN_MACRO_F1` floor, and no regression vs. the previous
@@ -71,6 +72,10 @@ shop actually carries, never an invented one.
 
 In both cases, promoting a new `@champion` in MLflow + calling `/reload` or `/prompt/reload`
 *is* the deployment — nothing else changes.
+=======
+![Architecture](image.png)
+
+>>>>>>> 3ad7594 (added architecture - MLOps LLMOPs)
 
 ## Repository layout
 
