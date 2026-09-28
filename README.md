@@ -24,6 +24,7 @@ VinhoVerde AI is one app with two products, both run with the same MLOps discipl
 ```bash
 cp docker/.env.example docker/.env   # add GEMINI_API_KEY (+ Kaggle token, optional)
 make up          # MLflow :5001 · JupyterLab :8888 · App :8080
+docker compose -f docker/docker-compose.yml up -d # For everyday runs
 make data        # download UCI + Kaggle, build processed tables
 make train       # 4 model configurations -> MLflow
 make register    # best run -> @candidate -> gate -> @champion
