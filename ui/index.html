@@ -163,7 +163,8 @@ async function ask() {
     body: JSON.stringify({message: text, history})});
   const d = await r.json(); wait.remove();
   if (!r.ok) { add(`⚠️ ${d.detail}`, "bot"); return; }
-  add(d.answer, "bot", d.wines);
+  const refusal = "I'm sorry, I can only help with wine, Portuguese wine regions and food pairing.";
+  add(d.answer, "bot", d.answer.trim() === refusal ? [] : d.wines);
   history.push({role: "user", content: text}, {role: "assistant", content: d.answer});
   history = history.slice(-6); refreshStatus();
 }
