@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 EXPERIMENT_NAME = "Sommelier-Prompt-Engineering"
 MIN_REFUSAL_ACCURACY = 1.0  # answering off-topic questions is a hard fail
 MIN_OVERALL_SCORE = 0.50
+MAX_FALSE_REFUSAL_RATE = 0.0  # on-topic questions must not get the off-topic refusal
 
 
 def looks_like_refusal(answer: str) -> bool:
@@ -174,6 +175,10 @@ def main():
             failures.append(f"refusal_accuracy {wm['refusal_accuracy']:.2f} < {MIN_REFUSAL_ACCURACY}")
         if wm["overall_score"] < MIN_OVERALL_SCORE:
             failures.append(f"overall_score {wm['overall_score']:.2f} < {MIN_OVERALL_SCORE}")
+        if wm["false_refusal_rate"] > MAX_FALSE_REFUSAL_RATE:
+            failures.append(
+                f"false_refusal_rate {wm['false_refusal_rate']:.2f} > {MAX_FALSE_REFUSAL_RATE}"
+            )
         mlflow.log_params({"best_mode": winner})
         mlflow.log_metric("gate_passed", 0 if failures else 1)
 

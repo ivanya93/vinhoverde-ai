@@ -46,6 +46,28 @@ ON_TOPIC = [
         "must_mention": [("vinho verde", "rosé", "rose", "white", "light red"),
                          ("light", "fresh", "versatile", "acidity", "acidic", "crisp")],
     },
+    {
+        "query": (
+            'Our lab tested a red wine: 9.4% alcohol, pH 3.51, residual sugar 1.9 g/L, '
+            'volatile acidity 0.7. The model rates it "standard". '
+            'What style is it likely to be, and what food would pair with it?'
+        ),
+        "must_mention": [
+            ("red",),
+            ("pair", "grilled", "poultry", "pork", "meat", "cheese", "charcuterie"),
+        ],
+    },
+    {
+        "query": (
+            'Our lab tested a white wine: 11.4% alcohol, pH 3.2, residual sugar 5.2 g/L, '
+            'volatile acidity 0.26. The model rates it "good". '
+            'What style is it likely to be, and what food would pair with it?'
+        ),
+        "must_mention": [
+            ("white",),
+            ("pair", "fish", "seafood", "salad", "poultry", "cheese"),
+        ],
+    },
 ]
 
 OFF_TOPIC = [
