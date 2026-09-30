@@ -11,13 +11,23 @@ VinhoVerde AI is one app with two products, both run with the same MLOps discipl
 | **Output** | Quality tier: *standard / good / premium* + recommended action | Recommendations **only from our catalog of Portuguese wines** |
 | **Data** | UCI Wine Quality: red + white Vinho Verde (6.5k samples) | Kaggle Wine Reviews, filtered to Portugal (~5k wines) |
 | **What we version** | The model → MLflow Model Registry | The prompt → MLflow Prompt Registry |
-| **How we compare** | Macro-F1 on a held-out test set | Evaluation Set: coverage, grounding, refusals |
+| **How we compare** | Macro-F1 on a held-out test set | Evaluation Set: coverage, grounding, refusals, false refusals |
 | **How we ship** | Move `@champion` → `POST /reload` | Move `@champion` → `POST /prompt/reload` |
 
 ## Business value
 
 - **Winery:** triage every batch in seconds from routine lab tests. That means fewer tasting-panel hours, and premium batches don't get sold as bulk wine (we track *premium recall*).
 - **Wine shop:** a 24/7 sommelier that sells *what is actually on the shelf*, and politely refuses anything that isn't about wine.
+
+## Team
+
+| Member | Role | Owns in this project |
+|---|---|---|
+| Ivana | MLOps Engineer / Data Scientist | Model registry, `@champion` gate and promotion, versioning, CI/CD (`ci.yml`, `retrain.yml`) |
+| Linda | Data Scientist / ML Engineer | Data pipeline, EDA, feature engineering, training and model metrics (macro-F1, premium recall) |
+| João | Prompt Engineer / LLM Application Engineer | Sommelier prompt modes, catalog retrieval, Evaluation Set and prompt promotion |
+| Olena | Software Engineer (Frontend) / UX-UI Designer | FastAPI app, UI (Quality Lab + Sommelier chat), human-AI interaction |
+| Hind | Product Owner | Business goal, customer value, roadmap |
 
 ## Quick start
 
@@ -40,7 +50,7 @@ Once `make up` is running, everything is on `localhost`:
 | 🧪 MLflow | [localhost:5001](http://localhost:5001) | Tracking, Model Registry, Prompt Registry, traces |
 | 📓 JupyterLab | [localhost:8888](http://localhost:8888) | `01_eda.ipynb` and `02_pipeline_walkthrough.ipynb` |
 
-No `make`? Every target is a one-line `docker compose` command (see `Makefile`).
+No `make`? Every target is a one-line `docker compose` command (see `Makefile`).                        
 
 ## Architecture
 
@@ -66,6 +76,27 @@ shop actually carries, never an invented one.
 
 In both cases, promoting a new `@champion` in MLflow + calling `/reload` or `/prompt/reload`
 *is* the deployment — nothing else changes.
+
+**Quality Lab → Sommelier handoff:** a winemaker can take a Quality Lab result (lab
+measurements + predicted tier) and ask the Sommelier what style the wine likely is and what
+food it pairs with. The prompt guard treats these as wine questions: lab results, quality
+tiers, likely style and food pairing are all on-topic. If the measurements don't pin down an
+exact style, the Sommelier explains the uncertainty instead of refusing.
+
+### Prompt promotion gate
+
+`make promote-prompt` scores every prompt mode on the Evaluation Set (`src/evaluation_set.py`,
+9 on-topic + 4 off-topic questions, including one red and one white lab handoff). The winner
+is promoted to `@champion` only if it passes all of these checks:
+
+| Check | Threshold | Why |
+|---|---|---|
+| `refusal_accuracy` | = 1.0 | Answering an off-topic question is a hard fail |
+| `overall_score` | ≥ 0.50 | Minimum overall answer quality |
+| `false_refusal_rate` | = 0.0 | Refusing an on-topic question (e.g. a lab handoff) is also a hard fail |
+
+In the UI, wine cards are hidden when the answer is the off-topic refusal, so a refused
+question never shows unrelated catalog wines.
 
 
 ![Architecture](image.png) 
@@ -96,18 +127,40 @@ In both cases, promoting a new `@champion` in MLflow + calling `/reload` or `/pr
 └── GUIDE.md                   Step-by-step plan to finish the project
 ```
 
+## Changelog
+
+### Wine lab handoffs + false-refusal gate (PR #3)
+
+Problem: the Sommelier sometimes answered a Quality Lab handoff (*"Our lab tested a red
+wine… what food would pair with it?"*) with the off-topic refusal, and the UI still showed
+wine cards under the refusal.
+
+| File | Change |
+|---|---|
+| `src/prompt_modes.py` | Guard now lists wine lab measurements, predicted quality tiers, likely style and food pairing as on-topic; explain uncertainty instead of refusing |
+| `src/evaluation_set.py` | Added the exact red and white lab handoff questions, so every prompt evaluation covers them |
+| `src/evaluate_prompts.py` | New gate `MAX_FALSE_REFUSAL_RATE = 0.0`: a prompt that refuses any on-topic question can't be promoted |
+| `ui/index.html` | Wine cards are not rendered when the answer is the off-topic refusal |
+
+Result: syntax check and all 14 tests passed. In the promotion run, the `grounded` prompt
+scored **0.981** overall with **0 false refusals** across the 13 evaluation questions and
+was promoted to `@champion` (prompt v11). After reloading the app, both
+handoffs and an off-topic question behaved as expected.
+
 ## Known limitations
 
-- **The prompt eval has a blind spot for false refusals.** `refusal_accuracy` only checks
-  that off-topic questions get refused — it never checked whether an on-topic one gets
-  wrongly refused. We hit this live: the `grounded` prompt (with a well-formed catalog
-  context) refused *"A Douro red under 20 euros for steak?"* once, at `temperature=0.4`,
-  even though replaying the exact same prompt 4/4 times produced correct, grounded
-  answers. It was non-deterministic LLM flakiness, not a bug in the prompt or the
-  retrieval — but the eval couldn't have caught it either way.
-  `src/evaluate_prompts.py` now tracks a `false_refusal_rate` metric (checked over the
-  on-topic cases) so this failure mode is at least visible per prompt mode, even though
-  it isn't folded into `overall_score` yet.
+- **False refusals can still be non-deterministic.** Before the gate existed, the
+  `grounded` prompt refused *"A Douro red under 20 euros for steak?"* once at
+  `temperature=0.4`, even though replaying the same prompt 4/4 times gave correct answers.
+  The `false_refusal_rate` gate now blocks promotion of a prompt that refuses on-topic
+  questions, but it only sees one sample per question. A flaky refusal can still slip past
+  the eval or show up in production.
+- **The UI refusal check is an exact string match.** `ui/index.html` duplicates the
+  `REFUSAL` text from `src/prompt_modes.py`. If one changes and the other doesn't, wine
+  cards will show again under refusals.
+- **Prompt version numbers are local.** Each machine's MLflow numbers its own versions,
+  so the number you see can differ. After pulling, run `make promote-prompt` and check
+  that `@champion` points to the `grounded` prompt.
 
 ## Data credits
 
