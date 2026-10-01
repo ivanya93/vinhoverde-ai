@@ -98,9 +98,27 @@ is promoted to `@champion` only if it passes all of these checks:
 In the UI, wine cards are hidden when the answer is the off-topic refusal, so a refused
 question never shows unrelated catalog wines.
 
+### Data lineage (`data_sha`)
+
+Every model version records a fingerprint of the exact dataset it was trained on.
+`file_fingerprint()` in `src/data.py` computes a SHA-256 hash of the training CSV and keeps
+the first 12 characters (e.g. `a3f9c21b07de`). The same file always gives the same code;
+changing a single value changes it completely.
+
+- `src/train.py` tags every MLflow run with `data_sha` and logs the dataset with
+  `mlflow.log_input` as `wine_quality_<sha>`.
+- `src/register.py` copies the tag onto the registered model version, so the Model Registry
+  shows which data trained each version.
+
+**Why it matters:** if a new version scores differently, compare `data_sha`. If the tags
+differ, the data changed. If they match, the code or settings changed. It also flags it if
+UCI ever changes the files that the weekly `retrain.yml` job downloads.
+
+**Limitation:** the hash shows *which* data was used, but it doesn't store it. Tools like DVC
+or Delta Lake keep the actual snapshots. Here the UCI dataset is fixed and public, so a
+fingerprint is enough.
 
 ![Architecture](image.png) 
-# Provisional architecture
 
 
 ## Repository layout
@@ -123,7 +141,6 @@ question never shows unrelated catalog wines.
 ├── tests/                     Offline tests on synthetic data
 ├── docker/                    Compose stack, Dockerfiles, pinned requirements
 ├── .github/workflows/         ci.yml · retrain.yml
-├── docs/PRESENTATION.md       5-minute pitch plan
 └── GUIDE.md                   Step-by-step plan to finish the project
 ```
 
