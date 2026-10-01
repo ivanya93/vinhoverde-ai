@@ -141,7 +141,7 @@ fingerprint is enough.
 ├── tests/                     Offline tests on synthetic data
 ├── docker/                    Compose stack, Dockerfiles, pinned requirements
 ├── .github/workflows/         ci.yml · retrain.yml
-└── GUIDE.md                   Step-by-step plan to finish the project
+└── GUIDE.md                   Step-by-step plan to finish the project.
 ```
 
 ## Changelog
